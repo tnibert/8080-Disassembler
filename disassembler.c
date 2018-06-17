@@ -15,6 +15,7 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc)
     printf ("%04x ", pc);
     switch (*code)
     {
+        // http://www.emulator101.com/8080-by-opcode.html
         case 0x00: printf("NOP"); break;
         case 0x01: printf("LXI    B,#$%02x%02x", code[2], code[1]); opbytes=3; break;
         case 0x02: printf("STAX   B"); break;
@@ -30,20 +31,27 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc)
         case 0x0c: printf("INR    C"); break;
         case 0x0d: printf("DCR    C"); break;
         case 0x0e: printf("MVI    C,#$%02x", code[1]); opbytes=2; break;
+        case 0x0f: printf("RRC"); break;
+        // case 0x10 is NOP
+        case 0x11: printf("LXI    D,#$%02x%02x", code[2], code[1]); opbytes=3; break;
+        /* ........
+        #0x..*/
+        case 0x3e: printf("MVI    A,#0x%02x", code[1]); opbytes = 2; break;
+        /* ........
+        $adr
+         */
+        case 0xc3: printf("JMP    $%02x%02x",code[2],code[1]); opbytes = 3; break;
         /* ........ */
-        case 0x3e: printf("MVI    A,#0x%02x", code[1]); opbytes = 2; break;    
-        /* ........ */    
-        case 0xc3: printf("JMP    $%02x%02x",code[2],code[1]); opbytes = 3; break;    
-        /* ........ */    
-    }    
+        default: printf("NOP"); break;
+    }
 
-    printf("\n");    
+    printf("\n");
 
-    return opbytes;    
+    return opbytes;
 }
 
 int main (int argc, char**argv)
-   {
+{
     FILE *f= fopen(argv[1], "rb");    
     if (f==NULL)    
     {    
@@ -68,6 +76,4 @@ int main (int argc, char**argv)
         pc += Disassemble8080Op(buffer, pc);    
     }    
     return 0;    
-   }    
-
-
+}
