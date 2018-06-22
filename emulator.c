@@ -135,6 +135,14 @@ int Emulate8080Op(State8080* state)
         case 0x86:                                      //ADD M
             // wtf is this line calculating?
             ;   // empty statement to avoid compilation error
+            //https://stackoverflow.com/questions/141525/what-are-bitwise-shift-bit-shift-operators-and-how-do-they-work
+            //equivalent to multiplication by powers of 2
+            // e.g. 6 << 1 == 6 * 2, 6 << 3 == 6 * 8
+            // e.g. n1 << n2 == n1 * 2^n2
+            // >>> is the opposite operation n1 / 2^n2 (logical right shift)
+            // >> (arithmetic right shift), same as above but pads with most significant bit
+            // although apparently logical and arithmetic are just different for java, not C
+            // so this byte shift is increasing the place of the hex digit to get the address
             uint16_t offset = (state->h<<8) | (state->l);
             // does this indicate that we need to pass uint16_t to Add?
             // no... it can't be because state->memory[offset] only gives one byte
