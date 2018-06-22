@@ -152,6 +152,7 @@ int main (int argc, char**argv)
 
     // create and init state machine
     State8080 * emustate = calloc(1, sizeof(State8080));
+    emustate->memory = malloc(0x10000);  //16K
 
     emustate->pc = 0;
 
