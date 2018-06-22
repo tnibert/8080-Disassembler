@@ -10,6 +10,14 @@
 */
 
 typedef struct ConditionCodes {
+    /*
+    z - zero, set to 1 when result is equal to zero
+    s - sign, set to 1 when bit 7 (most significant bit) of math instruction is set
+    p - parity, set when the answer has even parity, clear when odd parity
+    cy - carry, set to 1 when instruction resulted in a carry out or borrow into the higher order bit
+    ac - auxillary carry, used for Binary Coded Decimal math (space invaders doesn't use)
+    ^ used by conditional branching, ex) jz branches if z flag is set
+    */
     uint8_t    z:1;
     uint8_t    s:1;
     uint8_t    p:1;
@@ -19,7 +27,7 @@ typedef struct ConditionCodes {
 } ConditionCodes;
 
 typedef struct State8080 {
-    uint8_t    a;
+    uint8_t    a;       // register A - the accumulator
     uint8_t    b;
     uint8_t    c;
     uint8_t    d;
@@ -67,10 +75,84 @@ int Emulate8080Op(State8080* state)
         case 0x41: state->b = state->c; break;    //MOV B,C
         case 0x42: state->b = state->d; break;    //MOV B,D
         case 0x43: state->b = state->e; break;    //MOV B,E
+
+        // next two are register form arithmetic
+        case 0x80:                                //ADD B
+        {
+            //uses flags
+            // do the math with higher precision so we can capture the
+            // carry out
+            uint16_t answer = (uint16_t) state->a + (uint16_t) state->b;
+
+            // Zero flag: if the result is zero,
+            // set the flag to zero
+            // else clear the flag
+            if ((answer & 0xff) == 0)
+                state->cc.z = 1;
+            else
+                state->cc.z = 0;
+
+            // Sign flag: if bit 7 is set,
+            // set the sign flag
+            // else clear the sign flag
+            if (answer & 0x80)
+                state->cc.s = 1;
+            else
+                state->cc.s = 0;
+
+            // Carry flag
+            if (answer > 0xff)
+                state->cc.cy = 1;
+            else
+                state->cc.cy = 0;
+
+            // Parity is handled by a subroutine
+            state->cc.p = Parity( answer & 0xff);
+
+            state->a = answer & 0xff;
+        } break;
+
+        //The code for ADD can be condensed like this...
+        case 0x81:                                      //ADD C
+        {
+            uint16_t answer = (uint16_t) state->a + (uint16_t) state->c;
+            state->cc.z = ((answer & 0xff) == 0);
+            state->cc.s = ((answer & 0x80) != 0);
+            state->cc.cy = (answer > 0xff);
+            state->cc.p = Parity(answer&0xff);
+            state->a = answer & 0xff;
+        } break;
+
+        /* next is immediate form
+           source of the addend is the byte after the instruction */
+
+        case 0xC6:      //ADI byte
+        {
+            uint16_t answer = (uint16_t) state->a + (uint16_t) opcode[1];
+            state->cc.z = ((answer & 0xff) == 0);
+            state->cc.s = ((answer & 0x80) != 0);
+            state->cc.cy = (answer > 0xff);
+            state->cc.p = Parity(answer&0xff);
+            state->a = answer & 0xff;
+        } break;
+
         default: UnimplementedInstruction(state); break;
     }
     state->pc+=1;  //for the opcode
 }
+
+/*void Add(State8080 *state, uint8_t addend)
+{
+    /*
+        perform addition and set flags
+    
+    uint16_t answer = (uint16_t) state->a + (uint16_t) opcode[1];
+            state->cc.z = ((answer & 0xff) == 0);
+            state->cc.s = ((answer & 0x80) != 0);
+            state->cc.cy = (answer > 0xff);
+            state->cc.p = Parity(answer&0xff);
+            state->a = answer & 0xff;
+}*/
 
 int Disassemble8080Op(unsigned char *codebuffer, int pc)
 {
