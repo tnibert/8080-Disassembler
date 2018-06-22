@@ -158,6 +158,15 @@ void Add(State8080 *state, uint8_t addend)
 {
     /*
         perform addition and set flags
+
+        NOTES: for addition arithmetic instructions:
+        In the carry variants (ADC, ACI, SBB, SUI) you use the carry bit in the calculation as indicated in the data book.
+
+        INX and DCX effect register pairs, these instructions do not effect the flags.
+
+        DAD is another register pair instruction, it only effects the carry flag
+
+        INR and DCR do not effect the carry flag
     */
     uint16_t answer = (uint16_t) state->a + (uint16_t) addend;
     state->cc.z = ((answer & 0xff) == 0);
