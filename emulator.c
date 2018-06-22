@@ -41,6 +41,20 @@ typedef struct State8080 {
     uint8_t    int_enable;
 } State8080;
 
+int Parity(int x, int size)
+{
+    // hmmmmmmmmmmmm
+    int i;
+    int p = 0;
+    x = (x & ((1<<size)-1));
+    for (i=0; i<size; i++)
+    {
+        if (x & 0x1) p++;
+        x = x >> 1;
+    }
+    return (0 == (p & 0x1));
+}
+
 void UnimplementedInstruction(State8080* state)
 {
     state->pc--;    // decrement as we have advanced one
@@ -107,52 +121,42 @@ int Emulate8080Op(State8080* state)
                 state->cc.cy = 0;
 
             // Parity is handled by a subroutine
-            state->cc.p = Parity( answer & 0xff);
+            //state->cc.p = Parity( answer & 0xff);
 
             state->a = answer & 0xff;
         } break;
 
-        //The code for ADD can be condensed like this...
+        //The code for ADD can be condensed into the ADD function
         case 0x81:                                      //ADD C
-        {
-            uint16_t answer = (uint16_t) state->a + (uint16_t) state->c;
-            state->cc.z = ((answer & 0xff) == 0);
-            state->cc.s = ((answer & 0x80) != 0);
-            state->cc.cy = (answer > 0xff);
-            state->cc.p = Parity(answer&0xff);
-            state->a = answer & 0xff;
-        } break;
+            Add(state, state->c);
+            break;
 
         /* next is immediate form
            source of the addend is the byte after the instruction */
 
         case 0xC6:      //ADI byte
-        {
-            uint16_t answer = (uint16_t) state->a + (uint16_t) opcode[1];
-            state->cc.z = ((answer & 0xff) == 0);
-            state->cc.s = ((answer & 0x80) != 0);
-            state->cc.cy = (answer > 0xff);
-            state->cc.p = Parity(answer&0xff);
-            state->a = answer & 0xff;
-        } break;
+            Add(state, opcode[1]);
+            state->pc += 1;
+            break;
 
         default: UnimplementedInstruction(state); break;
     }
     state->pc+=1;  //for the opcode
 }
 
-/*void Add(State8080 *state, uint8_t addend)
+void Add(State8080 *state, uint8_t addend)
 {
     /*
         perform addition and set flags
-    
-    uint16_t answer = (uint16_t) state->a + (uint16_t) opcode[1];
-            state->cc.z = ((answer & 0xff) == 0);
-            state->cc.s = ((answer & 0x80) != 0);
-            state->cc.cy = (answer > 0xff);
-            state->cc.p = Parity(answer&0xff);
-            state->a = answer & 0xff;
-}*/
+    */
+    uint16_t answer = (uint16_t) state->a + (uint16_t) addend;
+    state->cc.z = ((answer & 0xff) == 0);
+    state->cc.s = ((answer & 0x80) != 0);
+    state->cc.cy = (answer > 0xff);
+    //state->cc.p = Parity(answer&0xff);
+    // final result stored in register A
+    state->a = answer & 0xff;
+}
 
 int Disassemble8080Op(unsigned char *codebuffer, int pc)
 {
