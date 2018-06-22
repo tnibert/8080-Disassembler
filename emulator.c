@@ -131,9 +131,19 @@ int Emulate8080Op(State8080* state)
             Add(state, state->c);
             break;
 
+        // memory form... confusing
+        case 0x86:                                      //ADD M
+            // wtf is this line calculating?
+            ;   // empty statement to avoid compilation error
+            uint16_t offset = (state->h<<8) | (state->l);
+            // does this indicate that we need to pass uint16_t to Add?
+            // no... it can't be because state->memory[offset] only gives one byte
+            //uint16_t answer = (uint16_t) state->a + state->memory[offset];
+            Add(state, state->memory[offset]);
+            break;
+
         /* next is immediate form
            source of the addend is the byte after the instruction */
-
         case 0xC6:      //ADI byte
             Add(state, opcode[1]);
             state->pc += 1;
