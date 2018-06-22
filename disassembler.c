@@ -41,6 +41,16 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc)
         case 0x16: printf("MVI    D,#$%02x", code[1]); opbytes = 2; break;
         case 0x17: printf("RAL"); break;
         // 0x18 N/A
+        case 0x19: printf("DAD    D"); break;
+        case 0x1a: printf("LDAX   D"); break;
+        case 0x1b: printf("DCX    D"); break;
+        case 0x1c: printf("INR    E"); break;
+        case 0x1d: printf("DCR    E"); break;
+        case 0x1e: printf("MVI    E,#$%02x", code[1]); opbytes=2; break;
+        case 0x1f: printf("RAR"); break;
+        case 0x20: printf("RIM"); break;
+        case 0x21: printf("LXI    H,#$%02x%02x", code[2], code[1]); opbytes=3; break;
+        case 0x22: printf("SHLD   $%02x%02x", code[2], code[1]); opbytes=3; break;
         /* ........
         #0x..*/
         case 0x3e: printf("MVI    A,#0x%02x", code[1]); opbytes = 2; break;
@@ -49,7 +59,7 @@ int Disassemble8080Op(unsigned char *codebuffer, int pc)
          */
         case 0xc3: printf("JMP    $%02x%02x",code[2],code[1]); opbytes = 3; break;
         /* ........ */
-        default: printf("NOP"); break;
+        default: printf("-"); break;
     }
 
     printf("\n");
