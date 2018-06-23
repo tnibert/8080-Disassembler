@@ -41,7 +41,7 @@ typedef struct State8080 {
     uint8_t    int_enable;
 } State8080;
 
-int Parity(int x, int size)
+int parity(int x, int size)
 {
     // hmmmmmmmmmmmm
     int i;
@@ -85,7 +85,38 @@ int Emulate8080Op(State8080* state)
             state->b = opcode[2];
             state->pc += 2;                  //Advance 2 more bytes
             break;
-        /*....*/
+
+        // here's a good question, how do you implement multiplication using bit shifts?
+
+        case 0x0f:                    //RRC
+        // rotates A register and affects carry flag, same as 0x1f
+        {
+            uint8_t x = state->a;
+            state->a = ((x & 1) << 7) | (x >> 1);
+            state->cc.cy = (1 == (x&1));
+        } break;
+
+        case 0x1f:                    //RAR
+        {
+            uint8_t x = state->a;
+            state->a = (state->cc.cy << 7) | (x >> 1);
+            state->cc.cy = (1 == (x&1));
+        } break;
+
+        /*
+        AND, OR, not (CMP, CMA in 8080), and exclusive or (XOR) are known as Boolean operations. OR and AND were explained earlier. A not instruction (the 8080 calls it CMA or complement accumulator) simply flips the bits, all 1s become 0s, and all 0s become 1s.
+
+        I think of XOR as a "difference detector"
+        There are register, memory, and immediate forms of AND, OR, and XOR (CMP only has register form)
+
+        See 0x2f and 0xe6
+        */
+
+        case 0x2f:                                //CMA (not)
+            state->a = ~state->a;
+            //Data book says CMA doesn't effect the flags
+            break;
+
         case 0x41: state->b = state->c; break;    //MOV B,C
         case 0x42: state->b = state->d; break;    //MOV B,D
         case 0x43: state->b = state->e; break;    //MOV B,E
@@ -150,12 +181,79 @@ int Emulate8080Op(State8080* state)
             Add(state, state->memory[offset]);
             break;
 
+        /*
+        The JMP instruction unconditionally branches to the target address. There are also conditional jump instructions for all the condition codes (except AC):
+
+        JNZ and JZ for Zero
+
+        JNC and JC for Carry
+
+        JPO and JPE for Parity
+
+        JP (plus) and JM (minus) for Sign
+        */
+
+        case 0xc2:                      //JNZ address
+            if (0 == state->cc.z)
+                state->pc = (opcode[2] << 8) | opcode[1];
+            else
+                // branch not taken
+                state->pc += 2;
+            break;
+
+        case 0xc3:                      //JMP address
+            state->pc = (opcode[2] << 8) | opcode[1];
+            break;
+
+
         /* next is immediate form
            source of the addend is the byte after the instruction */
-        case 0xC6:      //ADI byte
+        case 0xc6:      //ADI byte
             Add(state, opcode[1]);
             state->pc += 1;
             break;
+
+        /*
+        CALL will push the address of the instruction after the call onto the stack, then jumps to the target address. RET gets an address off the stack and stores it to the PC. There are conditional versions of CALL and RET for all conditions.
+
+        CZ, CNZ, RZ, RNZ for Zero
+
+        CNC, CC, RNC, RC for Carry
+
+        CPO, CPE, RPO, RPE for Parity
+
+        CP, CM, RP, RM for Sign
+
+        The PCHL instruction will do a unconditional jump to the address in the HL register pair.
+
+        The previously-discussed RST is included in this group. It pushes the return address on the stack then jumps to a predetermined low-memory address.
+        */
+
+        case 0xcd:                      //CALL address
+        // if we make a declaration immediately after case, compile don't like, so {}
+        {
+            uint16_t ret = state->pc+2;
+            state->memory[state->sp-1] = (ret >> 8) & 0xff;
+            state->memory[state->sp-2] = (ret & 0xff);
+            state->sp = state->sp - 2;
+            state->pc = (opcode[2] << 8) | opcode[1];
+        } break;
+
+        case 0xc9:                      //RET
+            state->pc = state->memory[state->sp] | (state->memory[state->sp+1] << 8);    
+            state->sp += 2;
+            break;
+
+        case 0xe6:                      //ANI byte
+        {
+            uint8_t x = state->a & opcode[1];
+            state->cc.z = (x == 0);
+            state->cc.s = (0x80 == (x & 0x80));
+            state->cc.p = parity(x, 8);
+            state->cc.cy = 0;           //Data book says ANI clears CY
+            state->a = x;
+            state->pc++;                //for the data byte
+        } break;
 
         default: UnimplementedInstruction(state); break;
     }
